@@ -1,0 +1,164 @@
+import os
+from crewai import Agent, Task, Crew, Process
+from crewai_tools import Tool
+
+os.environ["OPENAI_API_KEY"] = "your-openai-api-key"
+
+# Define the Smart Contract Reader Tool
+class FileReadTool(Tool):
+    def __init__(self):
+        super().__init__(
+            name="FileReadTool",
+            description="Reads smart contract files from a specified folder",
+            func=self.run
+        )
+
+    def run(self, folder_path: str) -> list:
+        import os
+        contracts = []
+        if os.path.isfile(folder_path):
+            with open(folder_path, 'r') as file:
+                contracts.append(file.read())
+        else:
+            for file_name in os.listdir(folder_path):
+                if file_name.endswith('.txt'):
+                    with open(os.path.join(folder_path, file_name), 'r') as file:
+                        contracts.append(file.read())
+        return contracts
+
+
+# Define the Syntax Checker Tool
+class SyntaxCheckTool(Tool):
+    def __init__(self):
+        super().__init__(
+            name="SyntaxCheckTool",
+            description="Checks the syntax of the smart contracts",
+            func=self.run
+        )
+
+    def run(self, contracts: list) -> dict:
+        results = {}
+        for contract in contracts:
+            results[contract] = self.check_syntax(contract)
+        return results
+
+    def check_syntax(self, contract: str) -> list:
+        errors = []
+        if 'error' in contract:
+            errors.append('Syntax error found')
+        return errors
+
+# Define the Security Auditor Tool
+class SecurityAuditTool(Tool):
+    def __init__(self):
+        super().__init__(
+            name="SecurityAuditTool",
+            description="Audits the smart contracts for common security vulnerabilities",
+            func=self.run
+        )
+
+    def run(self, contracts: list) -> dict:
+        vulnerabilities = {}
+        for contract in contracts:
+            vulnerabilities[contract] = self.audit_security(contract)
+        return vulnerabilities
+
+    def audit_security(self, contract: str) -> list:
+        issues = []
+        if 'vulnerability' in contract:
+            issues.append('Security vulnerability found')
+        return issues
+
+# Define the Report Generator Tool
+class ReportGenerationTool(Tool):
+    def __init__(self):
+        super().__init__(
+            name="ReportGenerationTool",
+            description="Generates a report based on syntax and security audit results",
+            func=self.run
+        )
+
+    def run(self, syntax_results: dict, security_results: dict) -> str:
+        report = "Audit Report\n\n"
+        for contract, errors in syntax_results.items():
+            report += f"Contract: {contract}\nSyntax Errors: {errors}\n\n"
+        for contract, vulnerabilities in security_results.items():
+            report += f"Contract: {contract}\nSecurity Vulnerabilities: {vulnerabilities}\n\n"
+        return report
+
+# Define the Agents
+reader_agent = Agent(
+    role='Smart Contract Reader',
+    goal='Read smart contract files from the specified folder.',
+    verbose=True,
+    memory=True,
+    backstory='You are skilled at reading and extracting information from text files.',
+    tools=[FileReadTool()]
+)
+
+syntax_checker_agent = Agent(
+    role='Syntax Checker',
+    goal='Check the syntax of the smart contracts.',
+    verbose=True,
+    memory=True,
+    backstory='You have a keen eye for detail and can spot syntax errors quickly.',
+    tools=[SyntaxCheckTool()]
+)
+
+security_auditor_agent = Agent(
+    role='Security Auditor',
+    goal='Audit the smart contracts for common security vulnerabilities.',
+    verbose=True,
+    memory=True,
+    backstory='You are an expert in identifying security issues in smart contracts.',
+    tools=[SecurityAuditTool()]
+)
+
+report_generator_agent = Agent(
+    role='Report Generator',
+    goal='Compile the findings into a comprehensive report.',
+    verbose=True,
+    memory=True,
+    backstory='You excel at summarizing information and presenting it in a clear format.',
+    tools=[ReportGenerationTool()]
+)
+
+# Define the Tasks
+reading_task = Task(
+    description='Read all the smart contract files from the specified folder.',
+    expected_output='A list of smart contracts read from the folder.',
+    tools=[FileReadTool()],
+    agent=reader_agent
+)
+
+syntax_checking_task = Task(
+    description='Check each smart contract for syntax errors.',
+    expected_output='A list of syntax errors for each smart contract.',
+    tools=[SyntaxCheckTool()],
+    agent=syntax_checker_agent
+)
+
+security_auditing_task = Task(
+    description='Analyze each smart contract for security vulnerabilities.',
+    expected_output='A list of security vulnerabilities found in each smart contract.',
+    tools=[SecurityAuditTool()],
+    agent=security_auditor_agent
+)
+
+report_generation_task = Task(
+    description='Compile the findings into a report.',
+    expected_output='A comprehensive report of the audit findings.',
+    tools=[ReportGenerationTool()],
+    agent=report_generator_agent
+)
+
+# Forming the audit crew
+audit_crew = Crew(
+    agents=[reader_agent, syntax_checker_agent, security_auditor_agent, report_generator_agent],
+    tasks=[reading_task, syntax_checking_task, security_auditing_task, report_generation_task],
+    process=Process.sequential  # The tasks will be executed sequentially
+)
+
+# Kicking off the process
+result = audit_crew.kickoff(inputs={'folder_path': '/path/to/smart/contracts'})
+print(result)
