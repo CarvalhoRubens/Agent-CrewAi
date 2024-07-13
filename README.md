@@ -1,3 +1,6 @@
+
+The code described in this post is educational and is intended to spark discussion about the future of the auditing profession in the age of AI. It is a didactic example to explore how artificial intelligence can be integrated into auditing processes, particularly for smart contracts. 
+
 # AgentAuditSmartContract-CrewAi
 
 👩‍💻 AI Audit Team Components:
